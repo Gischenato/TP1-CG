@@ -52,7 +52,7 @@ def GeraPontos(qtd, Min: Ponto, Max: Ponto):
     Escala = Ponto()
     Escala = (Max - Min) * (1.0/1000.0)
     
-    for i in range(qtd):
+    for _ in range(qtd):
         x = random.randint(0, 1000)
         y = random.randint(0, 1000)
         x = x * Escala.x + Min.x
@@ -120,7 +120,7 @@ def init():
     glClearColor(0, 0, 1, 1)
     global Min, Max, Meio, Tamanho
 
-    GeraPontos(1000, Ponto(0,0), Ponto(500,500))
+    GeraPontos(3000, Ponto(0,0), Ponto(500,500))
     Min, Max = PontosDoCenario.getLimits()
     #Min, Max = PontosDoCenario.LePontosDeArquivo("PoligonoDeTeste.txt")
 
@@ -196,9 +196,42 @@ def display():
 
     glutSwapBuffers()
 
+#*********************************************************************************** 
+#*********************************************************************************** 
+def estaDentro(v1, v2):
+    z = v1[0]*v2[1] - v1[1]*v2[0]
+    return True if z>= 0 else False
+
+def contaPontosNoTriangulo():
+    a1,a2,a3 = (CampoDeVisao.getAresta(x) for x in range(0,3))
+    
+    v1 = (a1[1].x - a1[0].x, a1[1].y - a1[0].y, a1[1].z - a1[0].z) 
+    v2 = (a2[1].x - a2[0].x, a2[1].y - a2[0].y, a2[1].z - a2[0].z) 
+    v3 = (a3[1].x - a3[0].x, a3[1].y - a3[0].y, a3[1].z - a3[0].z) 
+    vetores = (v1, v2, v3)
+
+    dentro = 0
+    fora = 0
+
+    for i in range(PontosDoCenario.getNVertices()):
+        ponto : Ponto = PontosDoCenario.getVertice(i)
+        x,y,z = ponto.x, ponto.y, ponto.z
+        den = True
+        for j in range(3):
+            pI = CampoDeVisao.getAresta(j)[0]
+            vB = (pI.x - x, pI.y - y, pI.z - z)
+            if not estaDentro(vetores[j], vB): den = False
+        if den: dentro+=1
+        else: fora+=1
+            
+    print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}')
+#*********************************************************************************** 
+#*********************************************************************************** 
+
 #? ***********************************************************************************
-# The function called whenever a key is pressed. Note the use of Python tuples to pass in: (key, x, y)
-#ESCAPE = '\033'
+#? The function called whenever a key is pressed. Note the use of Python tuples to pass in: (key, x, y)
+#? ESCAPE = '\033'
+#? ***********************************************************************************
 ESCAPE = b'\x1b'
 def keyboard(*args):
     global flagDesenhaEixos
@@ -211,6 +244,7 @@ def keyboard(*args):
         os._exit(0)
     if args[0] == b'p':
         PontosDoCenario.imprimeVertices()
+        # contaPontosNoTriangulo()
     if args[0] == b'1':
         P1, P2 = PontosDoCenario.getAresta(0)
         P1.imprime()
@@ -226,14 +260,18 @@ def keyboard(*args):
 def arrow_keys(a_keys: int, x: int, y: int):
     global AnguloDoCampoDeVisao, TrianguloBase
 
-    print ("Tecla:", a_keys)
+    # print ("Tecla:", a_keys)
     if a_keys == GLUT_KEY_UP:         # Se pressionar UP
         AvancaCampoDeVisao(2)
+        contaPontosNoTriangulo()
     if a_keys == GLUT_KEY_DOWN:       # Se pressionar DOWN
         AvancaCampoDeVisao(-2)
+        contaPontosNoTriangulo()
     if a_keys == GLUT_KEY_LEFT:       # Se pressionar LEFT
         AnguloDoCampoDeVisao = AnguloDoCampoDeVisao + 2
+        contaPontosNoTriangulo()
     if a_keys == GLUT_KEY_RIGHT:      # Se pressionar RIGHT
+        contaPontosNoTriangulo()
         AnguloDoCampoDeVisao = AnguloDoCampoDeVisao - 2
 
     PosicionaTrianguloDoCampoDeVisao()
