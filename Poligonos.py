@@ -19,16 +19,18 @@ class Polygon:
     def getNVertices(self):
         return len(self.Vertices)
     
-    def insereVertice(self, x: float, y:float, z: float):
-        self.Vertices += [Ponto(x,y,z)]
+    def insereVertice(self, x: float, y:float, z: float, color = (1,1,0)):
+        self.Vertices += [Ponto(x,y,z,color)]
 
     # def insereVertice(self, P: Ponto):
     #    self.Vertices += [Ponto(P.x,P.y,P.z)]
 
+    def getRealVertice(self, i):
+        return self.Vertices[i]
+
     def getVertice(self, i):
         temp = copy.deepcopy(self.Vertices[i])
         return temp
-        #return self.Vertices[i]
     
     def desenhaPoligono(self):
         #print ("Desenha Poligono - Tamanho:", len(self.Vertices))
@@ -40,6 +42,11 @@ class Polygon:
     def desenhaVertices(self):
         glBegin(GL_POINTS);
         for V in self.Vertices:
+            if V.color == None:
+                glEnd()
+                return
+            r,g,b = V.color
+            glColor3f(r,g,b)
             glVertex3f(V.x,V.y,V.z)
         glEnd();
 

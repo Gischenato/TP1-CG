@@ -31,6 +31,8 @@ CampoDeVisao = Polygon()
 TrianguloBase = Polygon()
 PosicaoDoCampoDeVisao = Ponto
 
+qntPontos = 10000
+
 AnguloDoCampoDeVisao=0.0
 
 # Limites da Janela de Seleção
@@ -120,7 +122,7 @@ def init():
     glClearColor(0, 0, 1, 1)
     global Min, Max, Meio, Tamanho
 
-    GeraPontos(3000, Ponto(0,0), Ponto(500,500))
+    GeraPontos(qntPontos, Ponto(0,0), Ponto(500,500))
     Min, Max = PontosDoCenario.getLimits()
     #Min, Max = PontosDoCenario.LePontosDeArquivo("PoligonoDeTeste.txt")
 
@@ -177,6 +179,9 @@ def reshape(w,h):
 def display():
     global PontoClicado, flagDesenhaEixos
 
+    # PontosDoCenario = contaPontosNoTriangulo()
+    contaPontosNoTriangulo()
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
     glColor3f(1.0, 1.0, 0.0)
@@ -186,8 +191,8 @@ def display():
         glColor3f(1,1,1); # R, G, B  [0..1]
         DesenhaEixos()
 
-    #glPointSize(5);
-    glColor3f(1,1,0) # R, G, B  [0..1]
+    glPointSize(1.5);
+    # glColor3f(1,1,1) # R, G, B  [0..1]
     PontosDoCenario.desenhaVertices()
 
     glLineWidth(3)
@@ -214,16 +219,20 @@ def contaPontosNoTriangulo():
     fora = 0
 
     for i in range(PontosDoCenario.getNVertices()):
-        ponto : Ponto = PontosDoCenario.getVertice(i)
+        ponto : Ponto = PontosDoCenario.getRealVertice(i)
         x,y,z = ponto.x, ponto.y, ponto.z
         den = True
         for j in range(3):
             pI = CampoDeVisao.getAresta(j)[0]
             vB = (pI.x - x, pI.y - y, pI.z - z)
             if not estaDentro(vetores[j], vB): den = False
-        if den: dentro+=1
-        else: fora+=1
-            
+        if den: 
+            dentro+=1
+            ponto.set(color=(1,0,0)) #PONTO FICA VERMELHO
+        else:
+            ponto.set(color=(1,1,0)) #PONTO FICA AMARELO
+            fora+=1
+
     print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}')
 #*********************************************************************************** 
 #*********************************************************************************** 
@@ -244,7 +253,6 @@ def keyboard(*args):
         os._exit(0)
     if args[0] == b'p':
         PontosDoCenario.imprimeVertices()
-        # contaPontosNoTriangulo()
     if args[0] == b'1':
         P1, P2 = PontosDoCenario.getAresta(0)
         P1.imprime()
@@ -263,15 +271,11 @@ def arrow_keys(a_keys: int, x: int, y: int):
     # print ("Tecla:", a_keys)
     if a_keys == GLUT_KEY_UP:         # Se pressionar UP
         AvancaCampoDeVisao(2)
-        contaPontosNoTriangulo()
     if a_keys == GLUT_KEY_DOWN:       # Se pressionar DOWN
         AvancaCampoDeVisao(-2)
-        contaPontosNoTriangulo()
     if a_keys == GLUT_KEY_LEFT:       # Se pressionar LEFT
         AnguloDoCampoDeVisao = AnguloDoCampoDeVisao + 2
-        contaPontosNoTriangulo()
     if a_keys == GLUT_KEY_RIGHT:      # Se pressionar RIGHT
-        contaPontosNoTriangulo()
         AnguloDoCampoDeVisao = AnguloDoCampoDeVisao - 2
 
     PosicionaTrianguloDoCampoDeVisao()

@@ -7,13 +7,15 @@
 #? ************************************************
 
 import math
+from xmlrpc.client import boolean
 
 """ Classe Ponto """
 class Ponto:   
-    def __init__(self, x=0,y=0,z=0):
+    def __init__(self, x=0,y=0,z=0, color=(0,0,0)):
         self.x = x
         self.y = y
         self.z = z
+        self.color = color
     
     """ Imprime os valores de cada eixo do ponto """
     #? Faz a impressao usando sobrecarga de funcao
@@ -30,6 +32,9 @@ class Ponto:
         self.y = y
         self.z = z
     
+    def set(self, color=(0,0,0)):
+        self.color = color
+
 #? Definicao de operadores
 #? https://www.programiz.com/python-programming/operator-overloading
     def __add__(self, other):
