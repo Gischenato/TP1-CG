@@ -32,6 +32,7 @@ TrianguloBase = Polygon()
 PosicaoDoCampoDeVisao = Ponto
 
 qntPontos = 10000
+campo_de_visao = 0.25
 
 AnguloDoCampoDeVisao=0.0
 
@@ -95,10 +96,10 @@ def CriaTrianguloDoCampoDeVisao():
 #? **********************************************************************
 def PosicionaTrianguloDoCampoDeVisao():
     global Tamanho, CampoDeVisao, PosicaoDoCampoDeVisao, TrianguloBase
-    global AnguloDoCampoDeVisao
+    global AnguloDoCampoDeVisao, campo_de_visao
 
 
-    tam = Tamanho.x * 0.25
+    tam = Tamanho.x * campo_de_visao
     temp = Ponto()
     for i in range(TrianguloBase.getNVertices()):
         temp = TrianguloBase.getVertice(i)
@@ -243,7 +244,7 @@ def contaPontosNoTriangulo():
 #? ***********************************************************************************
 ESCAPE = b'\x1b'
 def keyboard(*args):
-    global flagDesenhaEixos
+    global flagDesenhaEixos, campo_de_visao
 
     # print (args,' ts')
     # If escape is pressed, kill everything.
@@ -251,6 +252,12 @@ def keyboard(*args):
         os._exit(0)
     if args[0] == ESCAPE:
         os._exit(0)
+    if args[0] == b'h':
+        campo_de_visao += .01
+        PosicionaTrianguloDoCampoDeVisao()
+    if args[0] == b'j':
+        campo_de_visao -= .01
+        PosicionaTrianguloDoCampoDeVisao()
     if args[0] == b'p':
         PontosDoCenario.imprimeVertices()
     if args[0] == b'1':
