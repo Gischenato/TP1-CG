@@ -181,11 +181,11 @@ def display():
     global PontoClicado, flagDesenhaEixos
 
     # PontosDoCenario = contaPontosNoTriangulo()
-    contaPontosNoTriangulo()
+    contaPontosNoTrianguloEnvelope()
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
-    glColor3f(1.0, 1.0, 0.0)
+    glColor3f(0.0, 1.0, 0.0)
 
     if (flagDesenhaEixos):
         glLineWidth(1)
@@ -241,9 +241,64 @@ def contaPontosNoTriangulo():
 
     print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}')
 #*********************************************************************************** 
+#Envelope
 #*********************************************************************************** 
+def calculaEnvelope():
+    v1,v2,v3 = (CampoDeVisao.getRealVertice(x) for x in range(0,3))
+    menorX, maiorX, menorY, maiorY = v1.x, v1.x, v1.y, v1.y
+    if(menorX > v2.x): menorX = v2.x
+    if(maiorX < v2.x): maiorX = v2.x
+    if(menorY > v2.y): menorY = v2.y
+    if(maiorY < v2.y): maiorY = v2.y
 
-#? ***********************************************************************************
+    if(maiorX < v3.x): maiorX = v3.x
+    if(menorX > v3.x): menorX = v3.x
+    if(menorY > v3.y): menorY = v3.y
+    if(maiorY < v3.y): maiorY = v3.y
+
+    # envelope =[(maiorX, menorY), (maiorX, maiorY), (menorX, maiorY), (menorX, menorY)]
+
+    # print(f'{envelope[0]} {envelope[1]} {envelope[2]} {envelope[3]}\n')
+
+    return maiorX, menorX, maiorY, menorY
+
+def estaDentroEnvelope(ponto: Ponto):
+    envelope = calculaEnvelope()
+    dentro = False
+    if(ponto.x <= envelope[0] and ponto.x >= envelope[1]):
+        if(ponto.y <= envelope[2] and ponto.y >= envelope[3]):
+            dentro = True
+    return dentro
+
+def contaPontosNoTrianguloEnvelope():
+    a1,a2,a3 = (CampoDeVisao.getAresta(x) for x in range(0,3))
+    
+    v1 = (a1[1].x - a1[0].x, a1[1].y - a1[0].y, a1[1].z - a1[0].z) 
+    v2 = (a2[1].x - a2[0].x, a2[1].y - a2[0].y, a2[1].z - a2[0].z) 
+    v3 = (a3[1].x - a3[0].x, a3[1].y - a3[0].y, a3[1].z - a3[0].z) 
+
+    dentro = 0
+    dentroEnvelope = 0
+    fora = 0
+    foraEnvelope = 0
+
+    for i in range(PontosDoCenario.getNVertices()):
+        ponto : Ponto = PontosDoCenario.getRealVertice(i)
+        if estaDentroEnvelope(ponto): 
+            dentroEnvelope+=1
+            if estaDentro(ponto, v1, v2, v3):
+                dentro+=1
+                ponto.set(color=(1,0,0)) #PONTO FICA VERMELHO
+            else: 
+                ponto.set(color=(1,1,0)) #PONTO FICA AMARELO
+                fora+=1
+        else:
+            ponto.set(color=(0,0,0)) #PONTO FICA PRETO
+            foraEnvelope+=1
+
+    print(f'Pontos dentro do envelope: {dentroEnvelope}  -> Pontos fora do envelope: {foraEnvelope}')
+    print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}')
+#? **************************************************////*********************************
 #? The function called whenever a key is pressed. Note the use of Python tuples to pass in: (key, x, y)
 #? ESCAPE = '\033'
 #? ***********************************************************************************
