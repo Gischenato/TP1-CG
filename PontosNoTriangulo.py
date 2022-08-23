@@ -18,20 +18,37 @@
 #?   https://stackoverflow.com/questions/6819661/python-location-on-mac-osx
 #?   Veja o arquivo Patch.rtf, armazenado na mesma pasta deste fonte.
 #? ***********************************************************************************
+from multiprocessing import Event
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 from Poligonos import *
 import random
 
+from QuadTree import QuadTree
+
 #? ***********************************************************************************
 #? Variaveis que controlam o triangulo do campo de visao
 PontosDoCenario = Polygon()
 CampoDeVisao = Polygon()
 TrianguloBase = Polygon()
+Envelope = Polygon()
+Envelope.insereVertice(0, 0, 0, color=(0,0,0))
+Envelope.insereVertice(0, 0, 0, color=(0,0,0))
+Envelope.insereVertice(0, 0, 0, color=(0,0,0))
+Envelope.insereVertice(0, 0, 0, color=(0,0,0))
+
+quadTree = QuadTree(0, 500, 0, 500, maximo=1000)
+
 PosicaoDoCampoDeVisao = Ponto
 
-qntPontos = 10000
+calculo = 0
+mostrar_envelope = True
+mostrar_quad_tree = False
+
+poligonos_QuadrTree = []
+
+qntPontos = 25000
 campo_de_visao = 0.25
 
 AnguloDoCampoDeVisao=0.0
@@ -51,7 +68,7 @@ flagDesenhaEixos = True
 #?      Metodo que gera pontos aleatorios no intervalo [Min..Max]
 #? **********************************************************************
 def GeraPontos(qtd, Min: Ponto, Max: Ponto):
-    global PontosDoCenario
+    global PontosDoCenario, poligonos_QuadrTree
     Escala = Ponto()
     Escala = (Max - Min) * (1.0/1000.0)
     
@@ -61,8 +78,14 @@ def GeraPontos(qtd, Min: Ponto, Max: Ponto):
         x = x * Escala.x + Min.x
         y = y * Escala.y + Min.y
         P = Ponto(x,y)
-        PontosDoCenario.insereVertice(P.x, P.y, P.z)
+        PontosDoCenario.insereVerticeP(P)
+        quadTree.add(P)
+        # PontosDoCenario.insereVertice(P.x, P.y, P.z)
         #PontosDoCenario.insereVertice(P)
+    quadTree.imprime()
+    poligonos_QuadrTree = quadTree.poligonos()
+    print(quadTree.tot)
+    # sys.exit()
 
 #? **********************************************************************
 #?  CriaTrianguloDoCampoDeVisao()
@@ -177,15 +200,19 @@ def reshape(w,h):
     glLoadIdentity()
 
 #? ***********************************************************************************
+#! -----------------------------------------------------------------------------------
 def display():
-    global PontoClicado, flagDesenhaEixos
+    global PontoClicado, flagDesenhaEixos, mostrar_quad_tree, poligonos_QuadrTree
 
     # PontosDoCenario = contaPontosNoTriangulo()
-    contaPontosNoTrianguloEnvelope()
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glLoadIdentity()
     glColor3f(0.0, 1.0, 0.0)
+
+    if mostrar_quad_tree:
+        print(desenhaQuadTree())
+        # print('asdasasdsad')
 
     if (flagDesenhaEixos):
         glLineWidth(1)
@@ -195,15 +222,42 @@ def display():
     glPointSize(1.5);
     # glColor3f(1,1,1) # R, G, B  [0..1]
     PontosDoCenario.desenhaVertices()
-
+    
     glLineWidth(3)
     glColor3f(1,0,0) # R, G, B  [0..1]
-    CampoDeVisao.desenhaPoligono()
+    CampoDeVisao.desenhaPoligono(color=(1,0,0))
+    if calculo == 1:
+        contaPontosNoTriangulo()
+    elif calculo == 2:
+        contaPontosNoTrianguloEnvelope()
+    elif calculo == 3:
+        contaPontosQuadTree()
+
+    if mostrar_envelope:
+        Envelope.desenhaPoligono(color=(0,1,0))
+
 
     glutSwapBuffers()
 
+
+#* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+def desenhaQuadTree():
+    # print('QuadTree')
+    tot = 0
+    
+    for x in reversed(poligonos_QuadrTree):
+        x[0].desenhaPoligonoComCor(x[1])
+        tot += 1
+    return tot
 #*********************************************************************************** 
-#*********************************************************************************** 
+#***********************************************************************************
+def imprimePonto(ponto: Ponto, cor):
+    r,g,b = cor
+    glBegin(GL_POINTS);
+    glColor3f(r,g,b)
+    glVertex3f(ponto.x,ponto.y,ponto.z)
+    glEnd();
+
 def getZDirection(v1, v2):
     z = v1[0]*v2[1] - v1[1]*v2[0]
     return True if z>= 0 else False
@@ -220,13 +274,16 @@ def estaDentro(ponto : Ponto, v1, v2, v3):
         
     return dentro
 
-def contaPontosNoTriangulo():
+def getArestasDoTriangulo():
     a1,a2,a3 = (CampoDeVisao.getAresta(x) for x in range(0,3))
-    
     v1 = (a1[1].x - a1[0].x, a1[1].y - a1[0].y, a1[1].z - a1[0].z) 
     v2 = (a2[1].x - a2[0].x, a2[1].y - a2[0].y, a2[1].z - a2[0].z) 
     v3 = (a3[1].x - a3[0].x, a3[1].y - a3[0].y, a3[1].z - a3[0].z) 
 
+    return v1,v2,v3
+
+def contaPontosNoTriangulo():
+    v1,v2,v3 = getArestasDoTriangulo()
     dentro = 0
     fora = 0
 
@@ -234,11 +291,11 @@ def contaPontosNoTriangulo():
         ponto : Ponto = PontosDoCenario.getRealVertice(i)
         if estaDentro(ponto, v1, v2, v3): 
             dentro+=1
-            ponto.set(color=(1,0,0)) #PONTO FICA VERMELHO
+            ponto.set(color=(0,0,0)) #PONTO FICA VERMELHO
+            imprimePonto(ponto, (1,0,0))
         else:
-            ponto.set(color=(1,1,0)) #PONTO FICA AMARELO
+            ponto.set(color=(0,0,0)) #PONTO FICA PRETO
             fora+=1
-
     print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}')
 #*********************************************************************************** 
 #Envelope
@@ -246,24 +303,26 @@ def contaPontosNoTriangulo():
 def calculaEnvelope():
     v1,v2,v3 = (CampoDeVisao.getRealVertice(x) for x in range(0,3))
     menorX, maiorX, menorY, maiorY = v1.x, v1.x, v1.y, v1.y
-    if(menorX > v2.x): menorX = v2.x
-    if(maiorX < v2.x): maiorX = v2.x
-    if(menorY > v2.y): menorY = v2.y
-    if(maiorY < v2.y): maiorY = v2.y
+    maiorX = max(v1.x, v2.x, v3.x)
+    menorX = min(v1.x, v2.x, v3.x)
+    maiorY = max(v1.y, v2.y, v3.y)
+    menorY = min(v1.y, v2.y, v3.y)
 
-    if(maiorX < v3.x): maiorX = v3.x
-    if(menorX > v3.x): menorX = v3.x
-    if(menorY > v3.y): menorY = v3.y
-    if(maiorY < v3.y): maiorY = v3.y
+    p0 = Ponto(maiorX, menorY, 0)
+    p1 = Ponto(menorX, menorY, 0)
+    p2 = Ponto(menorX, maiorY, 0)
+    p3 = Ponto(maiorX, maiorY, 0)
 
-    # envelope =[(maiorX, menorY), (maiorX, maiorY), (menorX, maiorY), (menorX, menorY)]
-
-    # print(f'{envelope[0]} {envelope[1]} {envelope[2]} {envelope[3]}\n')
-
+    Envelope.alteraVertice(0, p0)
+    Envelope.alteraVertice(1, p1)
+    Envelope.alteraVertice(2, p2)
+    Envelope.alteraVertice(3, p3)
     return maiorX, menorX, maiorY, menorY
+
 
 def estaDentroEnvelope(ponto: Ponto):
     envelope = calculaEnvelope()
+    
     dentro = False
     if(ponto.x <= envelope[0] and ponto.x >= envelope[1]):
         if(ponto.y <= envelope[2] and ponto.y >= envelope[3]):
@@ -271,12 +330,7 @@ def estaDentroEnvelope(ponto: Ponto):
     return dentro
 
 def contaPontosNoTrianguloEnvelope():
-    a1,a2,a3 = (CampoDeVisao.getAresta(x) for x in range(0,3))
-    
-    v1 = (a1[1].x - a1[0].x, a1[1].y - a1[0].y, a1[1].z - a1[0].z) 
-    v2 = (a2[1].x - a2[0].x, a2[1].y - a2[0].y, a2[1].z - a2[0].z) 
-    v3 = (a3[1].x - a3[0].x, a3[1].y - a3[0].y, a3[1].z - a3[0].z) 
-
+    v1,v2,v3 = getArestasDoTriangulo()
     dentro = 0
     dentroEnvelope = 0
     fora = 0
@@ -288,23 +342,61 @@ def contaPontosNoTrianguloEnvelope():
             dentroEnvelope+=1
             if estaDentro(ponto, v1, v2, v3):
                 dentro+=1
-                ponto.set(color=(1,0,0)) #PONTO FICA VERMELHO
-            else: 
-                ponto.set(color=(1,1,0)) #PONTO FICA AMARELO
+                # ponto.set(color=(1,0,0)) #PONTO FICA VERMELHO
+                imprimePonto(ponto, (1,0,0))
+            elif mostrar_envelope: 
+                imprimePonto(ponto, (1,1,0))
+                # ponto.set(color=(1,1,0)) #PONTO FICA AMARELO
                 fora+=1
+            else:
+                fora += 1
+                # ponto.set(color=(0,0,0)) #PONTO FICA PRETO
         else:
-            ponto.set(color=(0,0,0)) #PONTO FICA PRETO
+            # ponto.set(color=(0,0,0)) #PONTO FICA PRETO
+            fora += 1
             foraEnvelope+=1
 
     print(f'Pontos dentro do envelope: {dentroEnvelope}  -> Pontos fora do envelope: {foraEnvelope}')
     print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}')
+# **********************************************************************************
+#* QuadTree
+# **********************************************************************************
+def contaPontosQuadTree():
+    v1,v2,v3 = getArestasDoTriangulo()
+    dentro = 0
+    dentroEnvelope = 0
+    fora = 0
+    foraEnvelope = 0
+
+    envelope = calculaEnvelope()
+    pontos = quadTree.pontosNoEnvelope(envelope)
+    print(pontos[1], '-')
+    pontos = pontos[0]
+    print(len(pontos))
+
+    for i in range(len(pontos)):
+        ponto : Ponto = pontos[i]
+        if estaDentro(ponto, v1,v2,v3):
+            dentro+=1
+            # ponto.set(color=(1,0,0))
+            imprimePonto(ponto, (1,0,0))
+        else:
+            fora += 1
+            imprimePonto(ponto, (0,1,1))
+            # ponto.set(color=(0,0,0))
+    print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}')
+    # print(len)
+
+    pass
+# **********************************************************************************
+# **********************************************************************************
 #? **************************************************////*********************************
 #? The function called whenever a key is pressed. Note the use of Python tuples to pass in: (key, x, y)
 #? ESCAPE = '\033'
 #? ***********************************************************************************
 ESCAPE = b'\x1b'
 def keyboard(*args):
-    global flagDesenhaEixos, campo_de_visao
+    global flagDesenhaEixos, campo_de_visao, calculo, mostrar_envelope, mostrar_quad_tree
 
     # print (args,' ts')
     # If escape is pressed, kill everything.
@@ -312,6 +404,21 @@ def keyboard(*args):
         os._exit(0)
     if args[0] == ESCAPE:
         os._exit(0)
+    if args[0] == b'0':
+        calculo = 0
+    if args[0] == b'1':
+        calculo = 1
+    if args[0] == b'2':
+        calculo = 2
+    if args[0] == b'3':
+        calculo = 3
+    if args[0] == b'd':
+        mostrar_quad_tree = not mostrar_quad_tree
+    if args[0] == b'a':
+        # campo_de_visao += .01
+        print(CampoDeVisao.getLimits())
+        print(TrianguloBase.getLimits())
+        PosicionaTrianguloDoCampoDeVisao()
     if args[0] == b'h':
         campo_de_visao += .01
         PosicionaTrianguloDoCampoDeVisao()
@@ -325,6 +432,8 @@ def keyboard(*args):
         P1.imprime()
         P2.imprime()
     if args[0] == b' ':
+        if calculo == 2:
+            mostrar_envelope = not mostrar_envelope
         flagDesenhaEixos = not flagDesenhaEixos
 
     # Forca o redesenho da tela

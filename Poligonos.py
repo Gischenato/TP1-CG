@@ -11,6 +11,21 @@ from OpenGL.GLU import *
 from Ponto import *
 import copy
 
+cores = {
+    1: (1,0,0),
+    2: (0,1,0),
+    3: (0,.5,.5),
+    4: (1,0,1),
+    5: (0,1,1),
+    6: (1,1,1),
+    7: (1,0,0),
+    8: (0,1,0),
+    9: (0,0,1),
+    10: (1,0,1),
+    11: (0,1,1),
+    0: (0,1,1),
+}
+
 class Polygon:
 
     def __init__(self):
@@ -22,6 +37,10 @@ class Polygon:
     def insereVertice(self, x: float, y:float, z: float, color = (1,1,0)):
         self.Vertices += [Ponto(x,y,z,color)]
 
+    def insereVerticeP(self, ponto: Ponto):
+        ponto.set(color=(1,1,0))
+        self.Vertices += [ponto]
+
     # def insereVertice(self, P: Ponto):
     #    self.Vertices += [Ponto(P.x,P.y,P.z)]
 
@@ -32,8 +51,17 @@ class Polygon:
         temp = copy.deepcopy(self.Vertices[i])
         return temp
     
-    def desenhaPoligono(self):
+    def desenhaPoligono(self, color = (1,0,0)):
         #print ("Desenha Poligono - Tamanho:", len(self.Vertices))
+        glBegin(GL_LINE_LOOP)
+        glColor(color)
+        for V in self.Vertices:
+            glVertex3f(V.x,V.y,V.z)
+        glEnd();
+
+    def desenhaPoligonoComCor(self, color):
+        #print ("Desenha Poligono - Tamanho:", len(self.Vertices))
+        glColor(cores[color])
         glBegin(GL_LINE_LOOP)
         for V in self.Vertices:
             glVertex3f(V.x,V.y,V.z)
