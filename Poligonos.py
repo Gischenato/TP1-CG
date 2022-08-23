@@ -67,13 +67,10 @@ class Polygon:
             glVertex3f(V.x,V.y,V.z)
         glEnd();
 
-    def desenhaVertices(self):
+    def desenhaVertices(self, color = (1,1,1)):
         glBegin(GL_POINTS);
         for V in self.Vertices:
-            if V.color == None:
-                glEnd()
-                return
-            r,g,b = V.color
+            r,g,b = color
             glColor3f(r,g,b)
             glVertex3f(V.x,V.y,V.z)
         glEnd();

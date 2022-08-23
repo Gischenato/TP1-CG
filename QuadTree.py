@@ -32,24 +32,6 @@ class QuadTree:
           self.bottomLeft  = QuadTree(x0, meioX, meioY+1, y1, self.maximo)
           self.bottomRight = QuadTree(meioX+1, x1, meioY+1, y1, self.maximo)
 
-     def busca(self, x, y):
-          for ponto in self.vet:
-               print('(' + str(ponto.x) + ', ' + str(ponto.y) + ') ',end='')
-               if ponto.x == x and ponto.y == y: return True
-          print()
-          if self.topLeft == None: return False
-
-          if ponto.x > self.topLeft.x1:
-               if ponto.y > self.topLeft.y1:
-                    return self.bottomRight.busca(x, y)
-               else:
-                    return self.topLeft.busca(x, y)
-          else:
-               if ponto.y > self.topLeft.y1:
-                    return self.bottomLeft.busca(x, y)
-               else:
-                    return self.topLeft.busca(x, y)
-
      def checaDentro(self, envelope):
           xmax = envelope[0]
           xmin = envelope[1]
@@ -69,42 +51,22 @@ class QuadTree:
              ): return True
           
           return False
-          
-          # pass
 
      def pontosNoEnvelope(self, envelope):
-          tot = 0
-          x1 = envelope[0]
-          x0 = envelope[1]
-          y1 = envelope[2]
-          y0 = envelope[3]
-
           pontosDentro = []
           for p in self.vet:
                imprimePonto(p, (1,0,1))
                if estaDentroEnvelope(p, envelope):
                     pontosDentro.append(p)
                     
-          if self.topLeft == None: return pontosDentro, tot + 0
+          if self.topLeft == None: return pontosDentro
 
-          if self.topLeft.checaDentro(envelope):
-               ret = self.topLeft.pontosNoEnvelope(envelope)
-               pontosDentro += ret[0]
-               tot += ret[1]
-          if self.topRight.checaDentro(envelope):
-               ret = self.topRight.pontosNoEnvelope(envelope)
-               pontosDentro += ret[0]
-               tot += ret[1]
-          if self.bottomLeft.checaDentro(envelope):
-               ret = self.bottomLeft.pontosNoEnvelope(envelope)
-               pontosDentro += ret[0]
-               tot += ret[1]
-          if self.bottomRight.checaDentro(envelope):
-               ret = self.bottomRight.pontosNoEnvelope(envelope)
-               pontosDentro += ret[0]
-               tot += ret[1]
+          if self.topLeft.checaDentro(envelope): pontosDentro += self.topLeft.pontosNoEnvelope(envelope)
+          if self.topRight.checaDentro(envelope): pontosDentro += self.topRight.pontosNoEnvelope(envelope)
+          if self.bottomLeft.checaDentro(envelope): pontosDentro += self.bottomLeft.pontosNoEnvelope(envelope)
+          if self.bottomRight.checaDentro(envelope): pontosDentro += self.bottomRight.pontosNoEnvelope(envelope)
 
-          return pontosDentro, tot + 1
+          return pontosDentro
 
      def poligonos(self, altura = 0):
           p0 = Ponto(self.x1, self.y0, 0)
@@ -127,18 +89,6 @@ class QuadTree:
 
           return quadrados
 
-     def pontos(self, tabs='', atual = 'R'):
-          print(tabs, end='')
-          for ponto in self.vet:
-               print('(' + str(ponto.x) + ', ' + str(ponto.y) + ') ', end='')
-          print(atual)
-          if(self.isFull):
-               self.topLeft.pontos(tabs+'   ', atual+' TL')
-               self.topRight.pontos(tabs+'   ', atual+' TR')
-               self.bottomLeft.pontos(tabs+'   ', atual+' BL')
-               self.bottomRight.pontos(tabs+'   ', atual+' BR')
-
-
      def imprime(self, altura = 0, tabs=''):
           pos = ((self.x0,self.x1),(self.y0,self.y1))
           print(tabs, pos, '  ', self.isFull, len(self.vet))
@@ -149,7 +99,6 @@ class QuadTree:
                self.bottomRight.imprime(altura+1, tabs+'   ')
 
      def add(self, ponto: Ponto, path = []):
-          self.tot += 1
           if not(ponto.x >= self.x0
              and ponto.x <= self.x1 
              and ponto.y >= self.y0
@@ -158,20 +107,21 @@ class QuadTree:
           if len(self.vet) < self.maximo:
                self.isEmpty = False
                self.vet.append((ponto))
-               # for c in path:
-               #      print(c, end=' ')
-               # print()
+               self.tot += 1
                return True
 
-          if self.topLeft == None: 
-               self.divide()
-               # print('Dividindo')
+          if self.topLeft == None: self.divide()
+
           if(
-               self.topLeft.add(ponto, path + ['tl'])
-               or self.topRight.add(ponto, path + ['tr'])
-               or self.bottomLeft.add(ponto, path + ['bl'])
-               or self.bottomRight.add(ponto, path + ['br'])
-            ): return True
+               self.topLeft.add(ponto, path + ['tl']) or 
+               self.topRight.add(ponto, path + ['tr']) or 
+               self.bottomLeft.add(ponto, path + ['bl']) or 
+               self.bottomRight.add(ponto, path + ['br'])
+            ): 
+               self.tot += 1
+               return True
+
+          return False
 
 def estaDentroEnvelope(ponto: Ponto, envelope):
     dentro = False
@@ -186,32 +136,3 @@ def imprimePonto(ponto: Ponto, cor):
     glColor3f(r,g,b)
     glVertex3f(ponto.x,ponto.y,ponto.z)
     glEnd();
-# a = Ponto()
-# tot = 0
-# a = QuadTree(0, 100, 0, 100)
-# while True:
-#      print(tot)
-#      # while True:
-#      try:
-#           x, y = input('Dois nums: ').split()
-#      except:
-#           print("ERRO")
-#           sleep(.5)
-#           continue
-
-#      if x == '0' and y == '0':
-#           print('Busca: ')
-#           x, y = input('Dois nums: ').split()
-#           x, y = int(x), int(y)
-#           a.pontos()
-#           print()
-#           print(a.busca(x, y))
-
-#      else:
-#           print('\033[2J')
-#           print('\033[100A')
-#           x, y = int(x), int(y)
-#           tot+=1
-#           p = Ponto(x, y)
-#           a.add(p)
-#           a.imprime()
