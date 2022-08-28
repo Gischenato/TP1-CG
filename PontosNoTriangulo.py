@@ -26,11 +26,13 @@ import random
 
 from QuadTree import QuadTree
 
+testando = Polygon()
+
 #? ***********************************************************************************
 #? Variaveis que controlam o triangulo do campo de visao
 tam_tela = 600
-tam_quad_tree = 50
-qntPontos = 25000
+tam_quad_tree = 100
+qntPontos = 50000
 calculo = 0
 campo_de_visao = 0.25
 AnguloDoCampoDeVisao=0.0
@@ -83,7 +85,7 @@ def GeraPontos(qtd, Min: Ponto, Max: Ponto):
         while True:
             if quadTree.add(P): break
             tot += 1
-            print('Movendo ', P.x, P.y)
+            # print('Movendo ', P.x, P.y)
             P.x = P.x + 1
             if quadTree.add(P): break
             P.y = P.y + 1
@@ -100,7 +102,15 @@ def recriaQuadTree(novo_tam):
     quadTree = QuadTree(0, tam_tela, 0, tam_tela, maximo=novo_tam)
     for i in range(PontosDoCenario.getNVertices()):
         ponto : Ponto = PontosDoCenario.getRealVertice(i)
-        quadTree.add(ponto)
+        while True:
+            if quadTree.add(ponto): break
+            # print('Movendo ', P.x, P.y)
+            ponto.x = ponto.x + 1
+            if quadTree.add(ponto): break
+            ponto.y = ponto.y + 1
+            if ponto.x >= tam_tela: ponto.x = 1
+            if ponto.y >= tam_tela: ponto.y = 1
+
 
     poligonos_quadtree = quadTree.poligonos()
     print("NOVA QUAD TREE CRIADA")
@@ -222,7 +232,7 @@ def reshape(w,h):
 #! -----------------------------------------------------------------------------------
 def display():
     global PontoClicado, flagDesenhaEixos, mostrar_quad_tree
-    global mostrar_envelope, poligonos_quadtree, mostrar_pontos
+    global mostrar_envelope, poligonos_quadtree, mostrar_pontos, testando
 
     # PontosDoCenario = contaPontosNoTriangulo()
 
@@ -242,6 +252,8 @@ def display():
         # glColor3f(1,1,1) # R, G, B  [0..1]
         PontosDoCenario.desenhaVertices(color=(0,0,0))
     
+    testando.desenhaPoligonoComCor(6)
+
     glLineWidth(3)
     glColor3f(1,0,0) # R, G, B  [0..1]
     CampoDeVisao.desenhaPoligono(color=(1,0,0))
@@ -292,8 +304,24 @@ def estaDentro(ponto : Ponto, v1, v2, v3):
         
     return dentro
 
+def estaDentro2(ponto : Ponto, vetores, arestas):
+    x,y,z = ponto.x, ponto.y, ponto.z
+    dentro = True
+    # print(arestas[0][0])
+
+    # print(CampoDeVisao.getAresta(0)[0])
+    # return True
+
+    for j in range(3):
+        pI = arestas[j][0]
+        vB = (pI.x - x, pI.y - y, pI.z - z)
+        if not getZDirection(vetores[j], vB): dentro = False
+        
+    return dentro
+
 def getArestasDoTriangulo():
     a1,a2,a3 = (CampoDeVisao.getAresta(x) for x in range(0,3))
+
     v1 = (a1[1].x - a1[0].x, a1[1].y - a1[0].y, a1[1].z - a1[0].z) 
     v2 = (a2[1].x - a2[0].x, a2[1].y - a2[0].y, a2[1].z - a2[0].z) 
     v3 = (a3[1].x - a3[0].x, a3[1].y - a3[0].y, a3[1].z - a3[0].z) 
@@ -307,7 +335,8 @@ def contaPontosNoTriangulo():
 
     for i in range(PontosDoCenario.getNVertices()):
         ponto : Ponto = PontosDoCenario.getRealVertice(i)
-        if estaDentro(ponto, v1, v2, v3): 
+        if estaDentro2(ponto, (v1, v2, v3), list(CampoDeVisao.getAresta(x) for x in range(3))): 
+            # return
             dentro+=1
             ponto.set(color=(0,0,0)) #PONTO FICA VERMELHO
             imprimePonto(ponto, (1,0,0))
@@ -376,24 +405,13 @@ def contaPontosNoTrianguloEnvelope():
 #* QuadTree
 # **********************************************************************************
 def contaPontosQuadTree():
-    v1,v2,v3 = getArestasDoTriangulo()
-    dentro = 0
-    fora = 0
-    envelope = calculaEnvelope()
-    pontos = quadTree.pontosNoEnvelope(envelope)
+    dentro = quadTree.contaPontos(list(CampoDeVisao.getRealVertice(x) for x in range(3)))
 
-    for i in range(len(pontos)):
-        ponto : Ponto = pontos[i]
-        if estaDentro(ponto, v1,v2,v3):
-            dentro+=1
-            imprimePonto(ponto, (1,0,0)) # Ponto fica preto
-        else:
-            imprimePonto(ponto, (0,1,1)) # Ponto fica ciano
-
+    dentro_QuadTree = dentro[1]
+    dentro = dentro[0]
     fora = qntPontos - dentro
     
-    print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}')
-    pass
+    print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}  |  quadTree: {dentro_QuadTree}')
 # **********************************************************************************
 # **********************************************************************************
 #? **************************************************////*********************************
@@ -405,6 +423,7 @@ def keyboard(*args):
     global flagDesenhaEixos, campo_de_visao, calculo, quadTree
     global mostrar_pontos, mostrar_envelope, mostrar_quad_tree
 
+    global testando
     # print (args,' ts')
     # If escape is pressed, kill everything.
     # if args[0] == b'a':
@@ -413,6 +432,18 @@ def keyboard(*args):
     #     PosicionaTrianguloDoCampoDeVisao()
     if args[0] == b'q' or args[0] == ESCAPE:
         os._exit(0)
+    if args[0] == b'z':
+        triangulo = [CampoDeVisao.getVertice(x) for x in range(3)]
+        # for t in triangulo:
+            # print((t.x, t.y))
+        p0 = Ponto(0, 0)
+        p1 = Ponto(300, 300)
+        print(HaInterseccao(triangulo[0], triangulo[1], p0, p1))
+        testando = Polygon()
+        testando.insereVerticeP(p0)
+        testando.insereVerticeP(p1)
+        testando.desenhaPoligono()
+
     if args[0] == b'0': 
         calculo = 0
     if args[0] == b'1': 
