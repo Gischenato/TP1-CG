@@ -1,9 +1,14 @@
+import imp
+from re import I
 from Poligonos import Polygon
 from Ponto import *
 from OpenGL.GL import *
 from OpenGL.GLUT import *
 from OpenGL.GLU import *
 
+from Metodos import imprimePonto, getVetoresDoTriangulo
+
+imprimeCalculo = False
 
 class QuadTree:
      def __init__(self, x0, x1, y0, y1, maximo=10):
@@ -20,6 +25,10 @@ class QuadTree:
           self.topRight = None
           self.bottomLeft = None
           self.bottomRight = None
+
+     def troca(self):
+          global imprimeCalculo
+          imprimeCalculo = not imprimeCalculo
 
      def divide(self):
           self.isFull = True
@@ -52,22 +61,6 @@ class QuadTree:
              ): return True
           
           return False
-
-     def pontosNoEnvelope(self, envelope):
-          pontosDentro = []
-          for p in self.vet:
-               imprimePonto(p, (1,0,1))
-               if estaDentroEnvelope(p, envelope):
-                    pontosDentro.append(p)
-                    
-          if self.topLeft == None: return pontosDentro
-
-          if self.topLeft.checaDentro(envelope): pontosDentro += self.topLeft.pontosNoEnvelope(envelope)
-          if self.topRight.checaDentro(envelope): pontosDentro += self.topRight.pontosNoEnvelope(envelope)
-          if self.bottomLeft.checaDentro(envelope): pontosDentro += self.bottomLeft.pontosNoEnvelope(envelope)
-          if self.bottomRight.checaDentro(envelope): pontosDentro += self.bottomRight.pontosNoEnvelope(envelope)
-
-          return pontosDentro
 
      def poligonos(self, altura = 0):
           p0 = Ponto(self.x1, self.y0, 0)
@@ -134,7 +127,7 @@ class QuadTree:
                (p2, p3),
                (p3, p1)
           )
-          vetores = getArestasDoTriangulo((p1,p2,p3))
+          vetores = getVetoresDoTriangulo(arestas)
 
           for p in self.vet:
                imprimePonto(p, (1,0,1))
@@ -143,35 +136,15 @@ class QuadTree:
                     tot +=1
                else: tot_Quad += 1
                
-
-               # tot +=1
-
           if self.topLeft == None:
                return tot, tot_Quad
 
-
-          if tringuloDentroRetangulo(triangulo, self.topLeft):
-               result = self.topLeft.contaPontos(triangulo)
-               tot += result[0]
-               tot_Quad += result[1]
-
-          if tringuloDentroRetangulo(triangulo, self.topRight):
-               result = self.topRight.contaPontos(triangulo)
-               tot += result[0]
-               tot_Quad += result[1]
-
-          if tringuloDentroRetangulo(triangulo, self.bottomLeft):
-               result = self.bottomLeft.contaPontos(triangulo)
-               tot += result[0]
-               tot_Quad += result[1]
-
-          if tringuloDentroRetangulo(triangulo, self.bottomRight):
-               result = self.bottomRight.contaPontos(triangulo)
-               tot += result[0]
-               tot_Quad += result[1]
-
-
-
+          for node in [self.topLeft, self.topRight, self.bottomLeft, self.bottomRight]:
+               if tringuloDentroRetangulo(triangulo, node):
+                    result = node.contaPontos(triangulo)
+                    tot += result[0]
+                    tot_Quad += result[1]
+                    
           return tot, tot_Quad
           
 
@@ -198,30 +171,11 @@ def estaDentroEnvelope(ponto: Ponto, envelope):
             dentro = True
     return dentro
 
-def imprimePonto(ponto: Ponto, cor):
-    r,g,b = cor
-    glBegin(GL_POINTS);
-    glColor3f(r,g,b)
-    glVertex3f(ponto.x,ponto.y,ponto.z)
-    glEnd()
-
-
-def getArestasDoTriangulo(pontos):
-     a1 = (pontos[0], pontos[1])
-     a2 = (pontos[1], pontos[2])
-     a3 = (pontos[2], pontos[0])
-     # a1,a2,a3 = pontos
-     v1 = (a1[1].x - a1[0].x, a1[1].y - a1[0].y, a1[1].z - a1[0].z) 
-     v2 = (a2[1].x - a2[0].x, a2[1].y - a2[0].y, a2[1].z - a2[0].z) 
-     v3 = (a3[1].x - a3[0].x, a3[1].y - a3[0].y, a3[1].z - a3[0].z) 
-     return v1,v2,v3
-
 def getZDirection(v1, v2):
     z = v1[0]*v2[1] - v1[1]*v2[0]
     return True if z>= 0 else False
 
 def estaDentro(ponto, vetores, triangulo):
-     # dentro = True
      x,y,z = ponto.x, ponto.y, ponto.z
      for vA, pI in zip(vetores, triangulo):
           vB = (pI.x - x, pI.y - y, pI.z - z)
@@ -236,7 +190,7 @@ def quadradoDentroDoTriangulo(quadrado, vetores, triangulo):
      return False
 
 def tringuloDentroRetangulo(triangulo, retangulo : QuadTree):
-     
+     global imprimeCalculo
      xMin = retangulo.x0
      xMax = retangulo.x1
      yMin = retangulo.y0
@@ -246,20 +200,13 @@ def tringuloDentroRetangulo(triangulo, retangulo : QuadTree):
      p2 = Ponto(xMin, yMax)
      p3 = Ponto(xMax, yMax)
 
-     t = Polygon()
-     t.insereVerticeP(p0)
-     t.insereVerticeP(p1)
-     t.insereVerticeP(p3)
-     t.insereVerticeP(p2)
-     t.desenhaPoligonoComCor(6)
-# p0---------------p1
-# |                |
-# |                |
-# |                |
-# |                |
-# |                |
-# |                |
-# p2---------------p3
+     if imprimeCalculo:
+          t = Polygon()
+          t.insereVerticeP(p0)
+          t.insereVerticeP(p1)
+          t.insereVerticeP(p3)
+          t.insereVerticeP(p2)
+          t.desenhaPoligonoComCor(6)
 
      lTriangulo = [
           (triangulo[0], triangulo[1]),
@@ -267,11 +214,11 @@ def tringuloDentroRetangulo(triangulo, retangulo : QuadTree):
           (triangulo[2], triangulo[0])
      ]
 
-     t2 = Polygon()
-     t2.insereVerticeP(triangulo[0])
-     t2.insereVerticeP(triangulo[1])
-     t2.insereVerticeP(triangulo[2])
-     t2.desenhaPoligonoComCor(6)
+     # t2 = Polygon()
+     # t2.insereVerticeP(triangulo[0])
+     # t2.insereVerticeP(triangulo[1])
+     # t2.insereVerticeP(triangulo[2])
+     # t2.desenhaPoligonoComCor(6)
      
      lRetangulo = [
           (p0, p1),
@@ -283,27 +230,12 @@ def tringuloDentroRetangulo(triangulo, retangulo : QuadTree):
      for lT in lTriangulo:
           for lR in lRetangulo:
                if HaInterseccao(lT[0], lT[1], lR[0], lR[1]): return True
-                    # return True
-                    # t3 = Polygon()
-                    # t3.insereVerticeP(lT[0])
-                    # t3.insereVerticeP(lT[1])
-                    # t4 = Polygon()
-                    # t4.insereVerticeP(lR[0])
-                    # t4.insereVerticeP(lR[1])
-
-                    # t3.desenhaPoligonoComCor(2)
-                    # t4.desenhaPoligonoComCor(2)
-
-
-     # return False
      
      for p in triangulo:
           if p.x >= xMin and p.x <= xMax and p.y >= yMin and p.y <= yMax: return True
-          # print(p.x, p.y)
      
-     # v1, v2, v3 = getArestasDoTriangulo(triangulo)
      quadrado = (p0, p1, p2, p3)
-     vetores = getArestasDoTriangulo(triangulo)
+     vetores = getVetoresDoTriangulo(lTriangulo)
 
      if quadradoDentroDoTriangulo(quadrado, vetores, triangulo): return True
 

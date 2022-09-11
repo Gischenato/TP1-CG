@@ -25,6 +25,7 @@ from Poligonos import *
 import random
 
 from QuadTree import QuadTree
+from Metodos import *
 
 testando = Polygon()
 
@@ -53,6 +54,7 @@ mostrar_pontos = True
 mostrar_envelope = True
 mostrar_quad_tree = False
 mostrar_cores = True
+mostra_poligonos_quad_tree = False
 flagDesenhaEixos = False
 
 poligonos_quadtree = []
@@ -264,6 +266,7 @@ def display():
         contaPontosNoTrianguloEnvelope()
     elif calculo == 3:
         contaPontosQuadTree()
+        mostrar_envelope = False
 
     if mostrar_envelope:
         Envelope.desenhaPoligono(color=(0,1,0))
@@ -272,55 +275,13 @@ def display():
 
 #* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 def desenhaQuadTree():
-    # print('QuadTree')
-    tot = 0
-    
     for x in reversed(poligonos_quadtree):
         x[0].desenhaPoligonoComCor(x[1])
-        tot += 1
-    return tot
 #*********************************************************************************** 
 #***********************************************************************************
-def imprimePonto(ponto: Ponto, cor):
-    r,g,b = cor
-    glBegin(GL_POINTS);
-    glColor3f(r,g,b)
-    glVertex3f(ponto.x,ponto.y,ponto.z)
-    glEnd();
 
-def getZDirection(v1, v2):
-    z = v1[0]*v2[1] - v1[1]*v2[0]
-    return True if z>= 0 else False
-
-def estaDentro(ponto : Ponto, v1, v2, v3):
-    x,y,z = ponto.x, ponto.y, ponto.z
-    vetores = (v1, v2, v3)
-    dentro = True
-
-    for j in range(3):
-        pI = CampoDeVisao.getAresta(j)[0]
-        vB = (pI.x - x, pI.y - y, pI.z - z)
-        if not getZDirection(vetores[j], vB): dentro = False
-        
-    return dentro
-
-def estaDentro2(ponto : Ponto, vetores, arestas):
-    x,y,z = ponto.x, ponto.y, ponto.z
-    dentro = True
-    # print(arestas[0][0])
-
-    # print(CampoDeVisao.getAresta(0)[0])
-    # return True
-
-    for j in range(3):
-        pI = arestas[j][0]
-        vB = (pI.x - x, pI.y - y, pI.z - z)
-        if not getZDirection(vetores[j], vB): dentro = False
-        
-    return dentro
-
-def getArestasDoTriangulo():
-    a1,a2,a3 = (CampoDeVisao.getAresta(x) for x in range(0,3))
+def getVetoresDoTriangulo(arestas):
+    a1,a2,a3 = arestas
 
     v1 = (a1[1].x - a1[0].x, a1[1].y - a1[0].y, a1[1].z - a1[0].z) 
     v2 = (a2[1].x - a2[0].x, a2[1].y - a2[0].y, a2[1].z - a2[0].z) 
@@ -329,14 +290,14 @@ def getArestasDoTriangulo():
     return v1,v2,v3
 
 def contaPontosNoTriangulo():
-    v1,v2,v3 = getArestasDoTriangulo()
+    vetores = getVetoresDoTriangulo(CampoDeVisao.getAresta(x) for x in range(3))
+    vertices = list(CampoDeVisao.getVertice(x) for x in range(3))
     dentro = 0
     fora = 0
 
     for i in range(PontosDoCenario.getNVertices()):
         ponto : Ponto = PontosDoCenario.getRealVertice(i)
-        if estaDentro2(ponto, (v1, v2, v3), list(CampoDeVisao.getAresta(x) for x in range(3))): 
-            # return
+        if estaDentro(ponto, vetores, vertices): 
             dentro+=1
             ponto.set(color=(0,0,0)) #PONTO FICA VERMELHO
             imprimePonto(ponto, (1,0,0))
@@ -377,7 +338,8 @@ def estaDentroEnvelope(ponto: Ponto):
     return dentro
 
 def contaPontosNoTrianguloEnvelope():
-    v1,v2,v3 = getArestasDoTriangulo()
+    vetores = getVetoresDoTriangulo(CampoDeVisao.getAresta(x) for x in range(3))
+    vertices = list(CampoDeVisao.getVertice(x) for x in range(3))
     dentro = 0
     dentroEnvelope = 0
     fora = 0
@@ -387,7 +349,7 @@ def contaPontosNoTrianguloEnvelope():
         ponto : Ponto = PontosDoCenario.getRealVertice(i)
         if estaDentroEnvelope(ponto): 
             dentroEnvelope+=1
-            if estaDentro(ponto, v1, v2, v3):
+            if estaDentro(ponto, vetores, vertices):
                 dentro+=1
                 imprimePonto(ponto, (1,0,0)) # Ponto fica vermelho
             elif mostrar_envelope: 
@@ -405,7 +367,8 @@ def contaPontosNoTrianguloEnvelope():
 #* QuadTree
 # **********************************************************************************
 def contaPontosQuadTree():
-    dentro = quadTree.contaPontos(list(CampoDeVisao.getRealVertice(x) for x in range(3)))
+    vetores = list(CampoDeVisao.getRealVertice(x) for x in range(3))
+    dentro = quadTree.contaPontos(vetores)
 
     dentro_QuadTree = dentro[1]
     dentro = dentro[0]
@@ -467,6 +430,8 @@ def keyboard(*args):
     if args[0] == b'p':
         # PontosDoCenario.imprimeVertices()
         mostrar_pontos = not mostrar_pontos
+    if args[0] == b'i':
+        quadTree.troca()
     if args[0] == b' ':
         flagDesenhaEixos = not flagDesenhaEixos
     if args[0] == b'e':
@@ -537,7 +502,7 @@ def main():
     glutInitWindowPosition(100, 100)
     wind = glutCreateWindow("Pontos no Triangulo")
     glutDisplayFunc(display)
-    #glutIdleFunc(display)
+    # glutIdleFunc(display)
     glutReshapeFunc(reshape)
     glutKeyboardFunc(keyboard)
     glutSpecialFunc(arrow_keys)
