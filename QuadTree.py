@@ -1,5 +1,3 @@
-import imp
-from re import I
 from Poligonos import Polygon
 from Ponto import *
 from OpenGL.GL import *
@@ -11,7 +9,7 @@ from Metodos import imprimePonto, getVetoresDoTriangulo
 imprimeCalculo = False
 
 class QuadTree:
-     def __init__(self, x0, x1, y0, y1, maximo=10):
+     def __init__(self, x0, x1, y0, y1, maximo=10, tag='children'):
           self.tot = 0
           self.maximo = maximo
           self.x0 = x0 
@@ -25,6 +23,8 @@ class QuadTree:
           self.topRight = None
           self.bottomLeft = None
           self.bottomRight = None
+          self.tag = tag
+          self.addAgain = True
 
      def troca(self):
           global imprimeCalculo
@@ -38,9 +38,9 @@ class QuadTree:
           meioY = int(math.floor((y0+y1)/2))
 
           self.topLeft     = QuadTree(x0, meioX, y0, meioY, self.maximo)
-          self.topRight    = QuadTree(meioX+1, x1, y0, meioY, self.maximo)
-          self.bottomLeft  = QuadTree(x0, meioX, meioY+1, y1, self.maximo)
-          self.bottomRight = QuadTree(meioX+1, x1, meioY+1, y1, self.maximo)
+          self.topRight    = QuadTree(meioX, x1, y0, meioY, self.maximo)
+          self.bottomLeft  = QuadTree(x0, meioX, meioY, y1, self.maximo)
+          self.bottomRight = QuadTree(meioX, x1, meioY, y1, self.maximo)
 
      def checaDentro(self, envelope):
           xmax = envelope[0]
@@ -93,16 +93,23 @@ class QuadTree:
                self.bottomRight.imprime(altura+1, tabs+'   ')
 
      def add(self, ponto: Ponto, path = []):
+          # if not self.tag == 'parent':
           if not(ponto.x >= self.x0
-             and ponto.x <= self.x1 
-             and ponto.y >= self.y0
-             and ponto.y <= self.y1): return False
+          and ponto.x <= self.x1 
+          and ponto.y >= self.y0
+          and ponto.y <= self.y1): return False
 
           if len(self.vet) < self.maximo:
                self.isEmpty = False
                self.vet.append((ponto))
                self.tot += 1
                return True
+          
+          self.isFull = True
+          if self.addAgain:
+               self.addAgain = False
+               for p in self.vet:
+                    self.add(p)
 
           if self.topLeft == None: self.divide()
 
@@ -121,6 +128,7 @@ class QuadTree:
      def contaPontos(self, triangulo):
           tot = 0
           tot_Quad = 0
+          intersec = 0
           p1, p2, p3 = triangulo
           arestas = (
                (p1, p2),
@@ -128,24 +136,28 @@ class QuadTree:
                (p3, p1)
           )
           vetores = getVetoresDoTriangulo(arestas)
-
-          for p in self.vet:
-               imprimePonto(p, (1,0,1))
-               if estaDentro2(p, vetores, arestas):
-                    imprimePonto(p, (1,0,0))
-                    tot +=1
-               else: tot_Quad += 1
+          if not self.isFull:
+               for p in self.vet:
+                    imprimePonto(p, (1,1,1))
+                    if estaDentro2(p, vetores, arestas):
+                         imprimePonto(p, (1,0,0))
+                         tot +=1
+                    else: tot_Quad += 1
                
           if self.topLeft == None:
-               return tot, tot_Quad
+               return tot, tot_Quad, intersec
 
           for node in [self.topLeft, self.topRight, self.bottomLeft, self.bottomRight]:
-               if tringuloDentroRetangulo(triangulo, node):
+               testeColisao = tringuloDentroRetangulo(triangulo, node)
+               intersec += testeColisao[1] 
+               if testeColisao[0]:
                     result = node.contaPontos(triangulo)
+                    # print(result)
                     tot += result[0]
                     tot_Quad += result[1]
+                    intersec += result[2]
                     
-          return tot, tot_Quad
+          return tot, tot_Quad, intersec
           
 
 def estaDentro2(ponto : Ponto, vetores, arestas):
@@ -200,26 +212,13 @@ def tringuloDentroRetangulo(triangulo, retangulo : QuadTree):
      p2 = Ponto(xMin, yMax)
      p3 = Ponto(xMax, yMax)
 
-     if imprimeCalculo:
-          t = Polygon()
-          t.insereVerticeP(p0)
-          t.insereVerticeP(p1)
-          t.insereVerticeP(p3)
-          t.insereVerticeP(p2)
-          t.desenhaPoligonoComCor(6)
-
+     
      lTriangulo = [
           (triangulo[0], triangulo[1]),
           (triangulo[1], triangulo[2]),
           (triangulo[2], triangulo[0])
      ]
 
-     # t2 = Polygon()
-     # t2.insereVerticeP(triangulo[0])
-     # t2.insereVerticeP(triangulo[1])
-     # t2.insereVerticeP(triangulo[2])
-     # t2.desenhaPoligonoComCor(6)
-     
      lRetangulo = [
           (p0, p1),
           (p1, p3),
@@ -229,14 +228,29 @@ def tringuloDentroRetangulo(triangulo, retangulo : QuadTree):
 
      for lT in lTriangulo:
           for lR in lRetangulo:
-               if HaInterseccao(lT[0], lT[1], lR[0], lR[1]): return True
+               if HaInterseccao(lT[0], lT[1], lR[0], lR[1]): 
+                    if imprimeCalculo and not retangulo.isFull: imprimeQuadrado(p0, p1, p3, p2)
+                    return True, 1
+
      
      for p in triangulo:
-          if p.x >= xMin and p.x <= xMax and p.y >= yMin and p.y <= yMax: return True
+          if p.x >= xMin and p.x <= xMax and p.y >= yMin and p.y <= yMax: 
+               if imprimeCalculo and not retangulo.isFull: imprimeQuadrado(p0, p1, p3, p2)
+               return True, 1
      
      quadrado = (p0, p1, p2, p3)
      vetores = getVetoresDoTriangulo(lTriangulo)
 
-     if quadradoDentroDoTriangulo(quadrado, vetores, triangulo): return True
+     if quadradoDentroDoTriangulo(quadrado, vetores, triangulo): 
+          if imprimeCalculo and not retangulo.isFull: imprimeQuadrado(p0, p1, p3, p2)
+          return True, 1
 
-     return False
+     return False, 0
+
+def imprimeQuadrado(p0, p1, p3, p2):
+     t = Polygon()
+     t.insereVerticeP(p0)
+     t.insereVerticeP(p1)
+     t.insereVerticeP(p3)
+     t.insereVerticeP(p2)
+     t.desenhaPoligonoComCor(6)

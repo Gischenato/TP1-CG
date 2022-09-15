@@ -18,21 +18,22 @@
 #?   https://stackoverflow.com/questions/6819661/python-location-on-mac-osx
 #?   Veja o arquivo Patch.rtf, armazenado na mesma pasta deste fonte.
 #? ***********************************************************************************
+from ast import arg
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 from Poligonos import *
 import random
+from sys import argv
+
 
 from QuadTree import QuadTree
 from Metodos import *
 
-testando = Polygon()
-
 #? ***********************************************************************************
 #? Variaveis que controlam o triangulo do campo de visao
 tam_tela = 600
-tam_quad_tree = 100
+tam_quad_tree = 20
 qntPontos = 50000
 calculo = 0
 campo_de_visao = 0.25
@@ -46,7 +47,9 @@ Envelope.insereVertice(0, 0, 0)
 Envelope.insereVertice(0, 0, 0)
 Envelope.insereVertice(0, 0, 0)
 Envelope.insereVertice(0, 0, 0)
-quadTree = QuadTree(0, tam_tela, 0, tam_tela, maximo=tam_quad_tree)
+quadTree = QuadTree(0, tam_tela if len(argv) == 1 else tam_tela/2, 
+                    0, tam_tela if len(argv) == 1 else tam_tela/2,
+                    maximo=tam_quad_tree)
 
 PosicaoDoCampoDeVisao = Ponto
 
@@ -73,35 +76,80 @@ PontoClicado = Ponto()
 #?      Metodo que gera pontos aleatorios no intervalo [Min..Max]
 #? **********************************************************************
 def GeraPontos(qtd, Min: Ponto, Max: Ponto):
-    global PontosDoCenario, poligonos_quadtree
+    global PontosDoCenario, poligonos_quadtree, qntPontos
     Escala = Ponto()
     Escala = (Max - Min) * (1.0/1000.0)
-    tot = 0
-    
-    for _ in range(qtd):
-        x = random.randint(0, 1000)
-        y = random.randint(0, 1000)
-        x = x * Escala.x + Min.x
-        y = y * Escala.y + Min.y
-        P = Ponto(x,y)
-        while True:
-            if quadTree.add(P): break
-            tot += 1
-            # print('Movendo ', P.x, P.y)
-            P.x = P.x + 1
-            if quadTree.add(P): break
-            P.y = P.y + 1
-            if P.x >= tam_tela: P.x = 1
-            if P.y >= tam_tela: P.y = 1
-        PontosDoCenario.insereVerticeP(P)
-    quadTree.imprime()
-    print(f'{tot} pontos movidos')
+    tot = 0 
+
+    if len(argv) > 1:
+        # arquivo = open('CenarioDeTeste.txt')
+        arquivo = open('CenarioGrande.txt')
+        first = True
+        for line in arquivo:
+            if first:
+                qntPontos = int(line.strip())
+                first = False
+                continue
+            x, y = line.strip().split()
+            x, y = int(float(x)), int(float(y))
+            x = x * Escala.x + Min.x
+            y = y * Escala.y + Min.y
+            P = Ponto(x,y)
+            while True:
+                if quadTree.add(P): break
+                tot += 1
+                print('Movendo ', P.x, P.y)
+                P.x = P.x + 1
+                if quadTree.add(P): break
+                P.y = P.y + 1
+                if P.x >= tam_tela: P.x = 1
+                if P.y >= tam_tela: P.y = 1
+            PontosDoCenario.insereVerticeP(P)
+        arquivo.close()
+    else:
+        for _ in range(qtd):
+            x = random.randint(0, 1000)
+            y = random.randint(0, 1000)
+            x = x * Escala.x + Min.x
+            y = y * Escala.y + Min.y
+            P = Ponto(x,y)
+            while True:
+                if quadTree.add(P): break
+                tot += 1
+                # print('Movendo ', P.x, P.y)
+                P.x = P.x + 1
+                if quadTree.add(P): break
+                P.y = P.y + 1
+                if P.x >= tam_tela: P.x = 1
+                if P.y >= tam_tela: P.y = 1
+            PontosDoCenario.insereVerticeP(P)
+
+    # quadTree.imprime()
+    # print(f'{tot} pontos movidos')
     poligonos_quadtree = quadTree.poligonos()
-    print(quadTree.tot)
+    # print(quadTree.tot)
+
+def posicionNoCampoDeVisao(n):
+    global Meio, AnguloDoCampoDeVisao, PosicaoDoCampoDeVisao
+    if n == 1:
+        AnguloDoCampoDeVisao = 0
+        PosicaoDoCampoDeVisao = Meio
+    elif n == 2:
+        AnguloDoCampoDeVisao = 90
+        PosicaoDoCampoDeVisao= Meio
+    elif n == 3:
+        AnguloDoCampoDeVisao = 90
+        PosicaoDoCampoDeVisao= Meio * 0.5
+    elif n == 4:
+        AnguloDoCampoDeVisao = 0
+        PosicaoDoCampoDeVisao= Meio + Meio * 0.5
+    PosicionaTrianguloDoCampoDeVisao()
 
 def recriaQuadTree(novo_tam):
     global tam_tela, quadTree, poligonos_quadtree
-    quadTree = QuadTree(0, tam_tela, 0, tam_tela, maximo=novo_tam)
+    quadTree = QuadTree(0, tam_tela if len(argv) == 1 else tam_tela/2,
+                        0, tam_tela if len(argv) == 1 else tam_tela/2,
+                        maximo=novo_tam)
     for i in range(PontosDoCenario.getNVertices()):
         ponto : Ponto = PontosDoCenario.getRealVertice(i)
         while True:
@@ -179,7 +227,7 @@ def init():
 
     GeraPontos(qntPontos, Ponto(0,0), Ponto(tam_tela,tam_tela))
     Min, Max = PontosDoCenario.getLimits()
-    #Min, Max = PontosDoCenario.LePontosDeArquivo("PoligonoDeTeste.txt")
+    # Min, Max = PontosDoCenario.LePontosDeArquivo("CenarioGrande.txt")
 
     Meio = (Max+Min) * 0.5 # Ponto central da janela
     Tamanho = (Max - Min) # Tamanho da janela em X,Y
@@ -234,7 +282,7 @@ def reshape(w,h):
 #! -----------------------------------------------------------------------------------
 def display():
     global PontoClicado, flagDesenhaEixos, mostrar_quad_tree
-    global mostrar_envelope, poligonos_quadtree, mostrar_pontos, testando
+    global mostrar_envelope, poligonos_quadtree, mostrar_pontos
 
     # PontosDoCenario = contaPontosNoTriangulo()
 
@@ -243,6 +291,8 @@ def display():
     glColor3f(0.0, 1.0, 0.0)
 
     if mostrar_quad_tree:
+        glLineWidth(2)
+        # glLineWidth(2)
         desenhaQuadTree()
     if (flagDesenhaEixos):
         glLineWidth(1)
@@ -250,15 +300,12 @@ def display():
         DesenhaEixos()
 
     if mostrar_pontos:
-        glPointSize(1.5);
+        glPointSize(5);
         # glColor3f(1,1,1) # R, G, B  [0..1]
         PontosDoCenario.desenhaVertices(color=(0,0,0))
     
-    testando.desenhaPoligonoComCor(6)
-
     glLineWidth(3)
     glColor3f(1,0,0) # R, G, B  [0..1]
-    CampoDeVisao.desenhaPoligono(color=(1,0,0))
     if calculo == 1:
         contaPontosNoTriangulo()
         mostrar_envelope = False
@@ -271,6 +318,7 @@ def display():
     if mostrar_envelope:
         Envelope.desenhaPoligono(color=(0,1,0))
 
+    CampoDeVisao.desenhaPoligono(color=(1,0,0))
     glutSwapBuffers()
 
 #* -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -304,7 +352,7 @@ def contaPontosNoTriangulo():
         else:
             ponto.set(color=(0,0,0)) #PONTO FICA PRETO
             fora+=1
-    print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}')
+    print(f'FORÇA BRUTA | Dentro Triangulo: {dentro}  -> Testes forca bruta: {fora + dentro}')
 #*********************************************************************************** 
 #Envelope
 #*********************************************************************************** 
@@ -361,8 +409,9 @@ def contaPontosNoTrianguloEnvelope():
             fora += 1
             foraEnvelope+=1
 
-    print(f'Pontos dentro do envelope: {dentroEnvelope}  -> Pontos fora do envelope: {foraEnvelope}')
-    print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}')
+    # print(f'Pontos dentro do envelope: {dentroEnvelope}  -> Pontos fora do envelope: {foraEnvelope}')
+    # print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}')?
+    print(f'ENVELOPE    | Dentro Triangulo: {dentro} -> Teste envelope {foraEnvelope+dentroEnvelope} -> Teste forca bruta {dentroEnvelope}')
 # **********************************************************************************
 #* QuadTree
 # **********************************************************************************
@@ -370,11 +419,12 @@ def contaPontosQuadTree():
     vetores = list(CampoDeVisao.getRealVertice(x) for x in range(3))
     dentro = quadTree.contaPontos(vetores)
 
+    intersec = dentro[2]
     dentro_QuadTree = dentro[1]
     dentro = dentro[0]
     fora = qntPontos - dentro
     
-    print(f'Pontos dentro: {dentro}  -> Pontos fora: {fora}  |  quadTree: {dentro_QuadTree}')
+    print(f'QUAD TREE   | Dentro Triangulo: {dentro} -> Dentro QuadTree (testes forca bruta): {dentro_QuadTree}')
 # **********************************************************************************
 # **********************************************************************************
 #? **************************************************////*********************************
@@ -395,22 +445,23 @@ def keyboard(*args):
     #     PosicionaTrianguloDoCampoDeVisao()
     if args[0] == b'q' or args[0] == ESCAPE:
         os._exit(0)
-    if args[0] == b'z':
-        triangulo = [CampoDeVisao.getVertice(x) for x in range(3)]
-        # for t in triangulo:
-            # print((t.x, t.y))
-        p0 = Ponto(0, 0)
-        p1 = Ponto(300, 300)
-        print(HaInterseccao(triangulo[0], triangulo[1], p0, p1))
-        testando = Polygon()
-        testando.insereVerticeP(p0)
-        testando.insereVerticeP(p1)
-        testando.desenhaPoligono()
-
     if args[0] == b'0': 
         calculo = 0
-    if args[0] == b'1': 
+    if args[0] == b'6': 
+        print('POSICAO 1')
+        posicionNoCampoDeVisao(1)
+    if args[0] == b'7': 
+        print('POSICAO 2')
+        posicionNoCampoDeVisao(2)
+    if args[0] == b'8': 
+        print('POSICAO 3')
+        posicionNoCampoDeVisao(3)
+    if args[0] == b'9': 
+        print('POSICAO 4')
+        posicionNoCampoDeVisao(4)
+    if args[0] == b'1':
         calculo = 1
+        mostrar_envelope = False
     if args[0] == b'2':
         calculo = 2
         mostrar_envelope = True
@@ -420,6 +471,7 @@ def keyboard(*args):
         novo_tam = int(input('Novo tamanho'))
         recriaQuadTree(novo_tam)
     if args[0] == b'd': 
+        calculo = 0
         mostrar_quad_tree = not mostrar_quad_tree
     if args[0] == b'h':
         campo_de_visao += .01
@@ -499,7 +551,7 @@ def main():
     glutInitDisplayMode(GLUT_RGBA)
     # Define o tamanho inicial da janela grafica do programa
     glutInitWindowSize(tam_tela, tam_tela)
-    glutInitWindowPosition(100, 100)
+    glutInitWindowPosition(1000, 100)
     wind = glutCreateWindow("Pontos no Triangulo")
     glutDisplayFunc(display)
     # glutIdleFunc(display)
@@ -508,7 +560,6 @@ def main():
     glutSpecialFunc(arrow_keys)
     glutMouseFunc(mouse)
     init()
-    
     try:
         # main()
         glutMainLoop()
